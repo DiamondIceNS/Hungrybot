@@ -6,6 +6,7 @@ from default_players import default_players
 from hungergames import HungerGames
 from enums import ErrorCode
 from bot import HungryBot
+from config import config
 
 prefix = '''h$'''
 bot = HungryBot(command_prefix=prefix, description="A Hunger Games simulator bot")
@@ -227,4 +228,4 @@ def __sanitize_special_chars(text):
     return text.strip()
 
 
-bot.run("NDAyNjU0ODY4NzkzNDU4Njk4.DT75GQ.Lgupfr3c7mjWcQZPvHVh4LyH1u4")
+bot.run(config['token'])

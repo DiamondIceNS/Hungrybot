@@ -46,12 +46,6 @@ class Game:
             return True
         return False
 
-    def name_exists(self, name):
-        for p in self.players:
-            if p.name == name:
-                return True
-        return False
-
     def start(self):
         self.total_players_alive = len(self.players)
         self.has_started = True

@@ -15,37 +15,45 @@ class TestGame(unittest.TestCase):
     def test_defaults_day(self):
         self.assertEqual(self.g.day, 1)
 
-    def test_defaults_previous_step_type(self):
-        self.assertEqual(self.g.previous_step_type, None)
-
     def test_defaults_days_since_last_event(self):
         self.assertEqual(self.g.days_since_last_event, 0)
 
     def test_addplayer_adds_to_players(self):
         p = Player("name", 1, True)
         self.g.add_player(p)
-        self.assertIn(p, self.g.players)
+        self.assertIn("name", self.g.players)
+        self.assertEqual(p, self.g.players["name"])
 
-    def test_nameexists_does_exist(self):
-        name = "The Testing Gremlin"
-        p = Player(name, 1)
-        self.g.add_player(p)
-        self.assertTrue(self.g.name_exists(name))
+    def test_addplayer_new_player_returns_true(self):
+        p = Player("name", 1, True)
+        self.assertTrue(self.g.add_player(p))
 
-    def test_nameexists_does_not_exist(self):
-        name = "The Testing Gremlin"
-        p = Player(name, 1)
+    def test_addplayer_existing_player_returns_false(self):
+        p = Player("name", 1, True)
         self.g.add_player(p)
-        self.assertFalse(self.g.name_exists("name"))
+        self.assertFalse(self.g.add_player(p))
+
+    def test_removeplayer_removes_player(self):
+        p = Player("name", 1, True)
+        self.g.add_player(p)
+        self.g.remove_player("name")
+        self.assertNotIn("name", self.g.players)
+
+    def test_removeplayer_existing_player_returns_true(self):
+        p = Player("name", 1, True)
+        self.g.add_player(p)
+        self.assertTrue(self.g.remove_player("name"))
+
+    def test_removeplayer_new_player_returns_true(self):
+        p = Player("name", 1, True)
+        self.assertFalse(self.g.remove_player("name"))
 
     def test_startgame_players_alive(self):
-        players = set()
         for x in range(10):
             p = Player(str(x), x)
-            players.add(p)
             self.g.add_player(p)
         self.g.start()
-        self.assertTrue(players.issuperset(set(self.g.total_players_alive)))
+        self.assertEqual(self.g.total_players_alive, 10)
 
     def test_startgame_started(self):
         self.g.add_player(Player("name", 1))

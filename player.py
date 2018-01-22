@@ -30,6 +30,9 @@ class Player:
     def __ge__(self, other):
         return (self.district, not self.is_male, self.name) >= (other.district, not other.is_male, other.name)
 
+    def __hash__(self):
+        return hash((self.district, self.is_male, self.name))
+
     @property
     def he_she(self):
         if self.is_male:

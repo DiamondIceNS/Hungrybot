@@ -99,8 +99,8 @@ class HungerGames:
 
         summary = {
             'title': this_game.title,
-            'footer': "Players: {0}/{1} | Host: {2}"
-                      .format(len(this_game.players), 24 - len(this_game.players), this_game.owner_name)
+            'footer': "Players: {0}/24 | Host: {1}"
+                      .format(len(this_game.players), this_game.owner_name)
         }
 
         if len(player_list) == 0:

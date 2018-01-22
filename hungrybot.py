@@ -33,7 +33,9 @@ async def new(ctx, *, title: str = None):
     title - (Optional) The title of the simulation. Defaults to 'The Hunger Games'
     """
     if title is not None:
-        title = title.strip()
+        title = __strip_mentions(ctx.message, title)
+        title = __sanitize_here_everyone(title)
+        title = __sanitize_special_chars(title)
     owner = ctx.author
     ret = hg.new_game(ctx.channel.id, owner.id, owner.name, title)
     if not await __check_errors(ctx, ret):
@@ -64,13 +66,12 @@ async def add(ctx, *, name: str):
     Add a user to a new game.
 
     name - The name of the tribute to add. Limit 32 chars. Leading and trailing whitespace will be trimmed.
+    Special chars @*_`~ count for two characters each.
     \tPrepend the name with a `-m ` or `-f ` flag to set male or female gender. Defaults to a random gender.
     """
-    name = name.strip()
-    while re.search('<@(\d+)>', name) is not None:
-        user = await bot.get_user_info(re.search('<@(\d+)>', name).group(1))
-        if user is not None:
-            name = re.sub('<@{0}>'.format(user.id), user.name, name)
+    name = __strip_mentions(ctx.message, name)
+    name = __sanitize_here_everyone(name)
+    name = __sanitize_special_chars(name)
 
     ret = hg.add_player(ctx.channel.id, name)
     if not await __check_errors(ctx, ret):
@@ -191,6 +192,39 @@ async def __check_errors(ctx, error_code):
     if error_code is ErrorCode.GAME_NOT_STARTED:
         await ctx.reply("this game hasn't been started yet.")
         return False
+
+
+def __strip_mentions(message: discord.Message, text):
+    members = message.mentions
+    channels = message.channel_mentions
+    roles = message.role_mentions
+
+    for m in members:
+        name = m.nick if m.nick is not None else m.name
+        text = re.sub(m.mention, name, text)
+
+    for c in channels:
+        text = re.sub(c.mention, c.name, text)
+
+    for r in roles:
+        text = re.sub(r.mention, r.name, text)
+
+    return text
+
+
+def __sanitize_here_everyone(text):
+    text = re.sub('@here', '@\u180Ehere', text)
+    text = re.sub('@everyone', '@\u180Eeveryone', text)
+    return text
+
+
+def __sanitize_special_chars(text):
+    text = re.sub('@', '\\@', text)
+    text = re.sub('~~', '\\~\\~', text)
+    text = re.sub('\*', '\\*', text)
+    text = re.sub('`', '\\`', text)
+    text = re.sub('_', '\\_', text)
+    return text.strip()
 
 
 bot.run("NDAyNjU0ODY4NzkzNDU4Njk4.DT75GQ.Lgupfr3c7mjWcQZPvHVh4LyH1u4")

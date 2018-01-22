@@ -15,9 +15,13 @@ class Game:
         self.players_dead_today = []
         self.players_available = set()
         self.day = 1
-        self.previous_step_type = None
         self.started = False
         self.days_since_last_event = 0
+        self.rounds_without_deaths = 0
+        self.bloodbath_passed = False
+        self.day_passed = False
+        self.fallen_passed = False
+        self.night_passed = False
 
     def add_player(self, new_player):
         self.players.append(new_player)
@@ -39,32 +43,37 @@ class Game:
             self.started = False
             return {'winner': self.players_alive[0].name, 'district': self.players_alive[0].district}
 
-        if self.previous_step_type is RoundType.NIGHT:
+        if self.night_passed:
             self.day += 1
             self.days_since_last_event += 1
+            self.day_passed = False
+            self.fallen_passed = False
+            self.night_passed = False
 
         feast_chance = 100 * (math.pow(self.days_since_last_event, 2) / 55.0) + (9.0 / 55.0)
-        fatality_factor = random.randint(0, 3)
+        fatality_factor = random.randint(2, 4) + self.rounds_without_deaths
 
-        if self.day is 1 and self.previous_step_type is None:
+        if self.day is 1 and not self.bloodbath_passed:
             step_type = RoundType.BLOODBATH
             fatality_factor += 2
-        elif self.previous_step_type is RoundType.DAY:
-            step_type = RoundType.FALLEN
-        elif self.previous_step_type is RoundType.NIGHT and random.randint(0, 100) < feast_chance:
+            self.bloodbath_passed = True
+        elif not self.day_passed and random.randint(0, 100) < feast_chance:
             step_type = RoundType.FEAST
             self.days_since_last_event = 0
             fatality_factor += 2
-        elif self.previous_step_type is RoundType.FALLEN:
-            step_type = RoundType.NIGHT
-        else:
-            step_type = RoundType.DAY
-
-        if step_type is not RoundType.BLOODBATH and self.days_since_last_event > 0 and random.randint(1, 20) is 1:
+        elif self.days_since_last_event > 0 and random.randint(1, 20) is 1:
             step_type = RoundType.ARENA
             self.days_since_last_event = 0
-
-        self.previous_step_type = step_type
+            fatality_factor += 1
+        elif not self.day_passed:
+            step_type = RoundType.DAY
+            self.day_passed = True
+        elif self.day_passed and not self.fallen_passed:
+            step_type = RoundType.FALLEN
+            self.fallen_passed = True
+        else:
+            step_type = RoundType.NIGHT
+            self.night_passed = True
 
         self.players_available.clear()
         for p in self.players_alive:
@@ -80,7 +89,12 @@ class Game:
                 event = events['arena'][random.randint(0, len(events['arena']) - 1)]
             else:
                 event = events[step_type.value]
+            dead_players_now = len(self.players_dead)
             messages = self.__generate_messages(fatality_factor, event)
+            if len(self.players_dead) == dead_players_now:
+                self.rounds_without_deaths += 1
+            else:
+                self.rounds_without_deaths = 0
 
         summary = {
             'day': self.day,

@@ -5,9 +5,10 @@ from discord.ext import commands
 from default_players import default_players
 from hungergames import HungerGames
 from enums import ErrorCode
+from bot import HungryBot
 
 prefix = '''h$'''
-bot = commands.Bot(command_prefix=prefix, description="A Hunger Games simulator bot")
+bot = HungryBot(command_prefix=prefix, description="A Hunger Games simulator bot")
 hg = HungerGames()
 
 
@@ -17,12 +18,13 @@ async def on_ready():
 
 
 @bot.command()
-async def ping():
+async def ping(ctx):
     """Pong!"""
-    await bot.reply("Pong!")
+    await ctx.send("Pong!")
 
 
-@bot.command(pass_context=True, rest_is_raw=True, no_pm=True)
+@bot.command(rest_is_raw=True)
+@commands.guild_only()
 async def new(ctx, *, title: str = None):
     """
     Start a new Hunger Games simulation in the current channel.
@@ -32,29 +34,31 @@ async def new(ctx, *, title: str = None):
     """
     if title is not None:
         title = title.strip()
-    owner = ctx.message.author
-    ret = hg.new_game(ctx.message.channel.id, owner.id, owner.name, title)
-    if not await __check_errors(ret):
+    owner = ctx.author
+    ret = hg.new_game(ctx.channel.id, owner.id, owner.name, title)
+    if not await __check_errors(ctx, ret):
         return
-    await bot.say("{0} has started {1}! Use `{2}add [-m|-f] <name>` to add a player or `{2}join [-m|-f]` to enter the "
-                  "game yourself!".format(owner.mention, title, prefix))
+    await ctx.send("{0} has started {1}! Use `{2}add [-m|-f] <name>` to add a player or `{2}join [-m|-f]` to enter the "
+                   "game yourself!".format(owner.mention, title, prefix))
 
 
-@bot.command(pass_context=True, no_pm=True)
+@bot.command()
+@commands.guild_only()
 async def join(ctx, gender=None):
     """
     Adds a tribute with your name to a new simulation.
 
     gender (Optional) - Use `-m` or `-f` to set male or female gender. Defaults to a random gender.
     """
-    name = ctx.message.author.nick if ctx.message.author.nick is not None else ctx.message.author.name
-    ret = hg.add_player(ctx.message.channel.id, name, gender=gender, volunteer=True)
-    if not await __check_errors(ret):
+    name = ctx.author.nick if ctx.author.nick is not None else ctx.author.name
+    ret = hg.add_player(ctx.channel.id, name, gender=gender, volunteer=True)
+    if not await __check_errors(ctx, ret):
         return
-    await bot.say(ret)
+    await ctx.reply(ret)
 
 
-@bot.command(pass_context=True, rest_is_raw=True, no_pm=True)
+@bot.command(rest_is_raw=True)
+@commands.guild_only()
 async def add(ctx, *, name: str):
     """
     Add a user to a new game.
@@ -68,22 +72,23 @@ async def add(ctx, *, name: str):
         if user is not None:
             name = re.sub('<@{0}>'.format(user.id), user.name, name)
 
-    ret = hg.add_player(ctx.message.channel.id, name)
-    if not await __check_errors(ret):
+    ret = hg.add_player(ctx.channel.id, name)
+    if not await __check_errors(ctx, ret):
         return
-    await bot.say(ret)
+    await ctx.send(ret)
 
 
-@bot.command(pass_context=True, no_pm=True)
+@bot.command()
+@commands.guild_only()
 async def fill(ctx, group_name=None):
     """
     Pad out empty slots in a new game with default characters.
 
-    group_name (Optional) - The builtin group to draw tributes from. Defaults to members in this server.
+    group_name (Optional) - The builtin group to draw tributes from. Defaults to members in this guild.
     """
     if group_name is None:
         group = []
-        for m in list(ctx.message.server.members):
+        for m in list(ctx.message.guild.members):
             if m.nick is not None:
                 group.append(m.nick)
             else:
@@ -91,96 +96,100 @@ async def fill(ctx, group_name=None):
     else:
         group = default_players.get(group_name)
 
-    ret = hg.pad_players(ctx.message.channel.id, group)
-    if not await __check_errors(ret):
+    ret = hg.pad_players(ctx.channel.id, group)
+    if not await __check_errors(ctx, ret):
         return
-    await bot.say(ret)
+    await ctx.send(ret)
 
 
-@bot.command(pass_context=True, no_pm=True)
+@bot.command()
+@commands.guild_only()
 async def status(ctx):
     """
     Gets the status for the game in the channel.
     """
-    ret = hg.status(ctx.message.channel.id)
-    if not await __check_errors(ret):
+    ret = hg.status(ctx.channel.id)
+    if not await __check_errors(ctx, ret):
         return
     embed = discord.Embed(title=ret['title'], description=ret['description'])
     embed.set_footer(text=ret['footer'])
-    await bot.send_message(destination=ctx.message.channel, embed=embed)
+    await ctx.send(embed=embed)
 
 
-@bot.command(pass_context=True, no_pm=True)
+@bot.command()
+@commands.guild_only()
 async def start(ctx):
     """
     Starts the pending game in the channel.
     """
-    ret = hg.start_game(ctx.message.channel.id, ctx.message.author.id, prefix)
-    if not await __check_errors(ret):
+    ret = hg.start_game(ctx.channel.id, ctx.author.id, prefix)
+    if not await __check_errors(ctx, ret):
         return
     embed = discord.Embed(title=ret['title'], description=ret['description'])
     embed.set_footer(text=ret['footer'])
-    await bot.send_message(destination=ctx.message.channel, embed=embed)
+    await ctx.send(embed=embed)
 
 
-@bot.command(pass_context=True, no_pm=True)
+@bot.command()
+@commands.guild_only()
 async def end(ctx):
     """
     Cancels the current game in the channel.
     """
-    ret = hg.end_game(ctx.message.channel.id, ctx.message.author.id)
-    if not await __check_errors(ret):
+    ret = hg.end_game(ctx.channel.id, ctx.author.id)
+    if not await __check_errors(ctx, ret):
         return
-    await bot.say("{0} has been cancelled. Anyone may now start a new game with `{1}new`.".format(ret.title, prefix))
+    await ctx.send("{0} has been cancelled. Anyone may now start a new game with `{1}new`.".format(ret.title, prefix))
 
 
-@bot.command(pass_context=True, no_pm=True)
+@bot.command()
+@commands.guild_only()
 async def step(ctx):
     """
     Steps forward the current game in the channel by one round.
     """
-    ret = hg.step(ctx.message.channel.id, ctx.message.author.id)
-    if not await __check_errors(ret):
+    ret = hg.step(ctx.channel.id, ctx.author.id)
+    if not await __check_errors(ctx, ret):
         return
     embed = discord.Embed(title=ret['title'], color=ret['color'], description=ret['description'])
     if ret['footer'] is not None:
         embed.set_footer(text=ret['footer'])
-    await bot.send_message(destination=ctx.message.channel, embed=embed)
+    await ctx.send(embed=embed)
 
 
-async def __check_errors(error_code):
+async def __check_errors(ctx, error_code):
     if type(error_code) is not ErrorCode:
         return True
     if error_code is ErrorCode.NO_GAME:
-        await bot.reply("there is no game currently running in this channel.")
+        await ctx.reply("there is no game currently running in this channel.")
         return False
     if error_code is ErrorCode.GAME_EXISTS:
-        await bot.reply("a game has already been started in this channel.")
+        await ctx.reply("a game has already been started in this channel.")
         return False
     if error_code is ErrorCode.GAME_STARTED:
-        await bot.reply("this game is already running.")
+        await ctx.reply("this game is already running.")
         return False
     if error_code is ErrorCode.GAME_FULL:
-        await bot.reply("this game is already at maximum capacity.")
+        await ctx.reply("this game is already at maximum capacity.")
         return False
     if error_code is ErrorCode.PLAYER_EXISTS:
-        await bot.reply("that person is already in this game.")
+        await ctx.reply("that person is already in this game.")
         return False
     if error_code is ErrorCode.CHAR_LIMIT:
-        await bot.reply("that name is too long (max 32 chars).")
+        await ctx.reply("that name is too long (max 32 chars).")
         return False
     if error_code is ErrorCode.NOT_OWNER:
-        await bot.reply("you are not the owner of this game.")
+        await ctx.reply("you are not the owner of this game.")
         return False
     if error_code is ErrorCode.INVALID_GROUP:
-        await bot.reply("that is not a valid group. Valid groups are:\n```\n{0}\n```"
+        await ctx.reply("that is not a valid group. Valid groups are:\n```\n{0}\n```"
                         .format("\n".join(list(default_players.keys()))))
         return False
     if error_code is ErrorCode.NOT_ENOUGH_PLAYERS:
-        await bot.reply("there are not enough players to start a game. There must be at least 2.")
+        await ctx.reply("there are not enough players to start a game. There must be at least 2.")
         return False
     if error_code is ErrorCode.GAME_NOT_STARTED:
-        await bot.reply("this game hasn't been started yet.")
+        await ctx.reply("this game hasn't been started yet.")
         return False
 
 

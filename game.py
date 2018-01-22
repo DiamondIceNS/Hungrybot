@@ -31,7 +31,7 @@ class Game:
     @property
     def players_sorted(self):
         l = list(self.players.values())
-        l.sort(key=lambda p: p.district)
+        l.sort()
         return l
 
     def add_player(self, new_player):

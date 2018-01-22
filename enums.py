@@ -21,3 +21,4 @@ class ErrorCode(Enum):
     INVALID_GROUP = 0x7
     NOT_ENOUGH_PLAYERS = 0x8
     GAME_NOT_STARTED = 0x9
+    PLAYER_DOES_NOT_EXIST = 0xA

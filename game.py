@@ -9,22 +9,42 @@ class Game:
         self.owner_name = owner_name
         self.owner_id = owner_id
         self.title = title
-        self.players = []
-        self.players_alive = []
-        self.players_dead = []
+        self.has_started = False
+
+        # Player data
+        self.players = {}
+        self.players_available_to_act = set()
         self.players_dead_today = []
-        self.players_available = set()
+        self.total_players_alive = 0
+
+        # Round counting
         self.day = 1
-        self.started = False
         self.days_since_last_event = 0
-        self.rounds_without_deaths = 0
+        self.consecutive_rounds_without_deaths = 0
+
+        # Round order control
         self.bloodbath_passed = False
         self.day_passed = False
         self.fallen_passed = False
         self.night_passed = False
 
+    @property
+    def players_sorted(self):
+        l = list(self.players.values())
+        l.sort(key=lambda p: p.district)
+        return l
+
     def add_player(self, new_player):
-        self.players.append(new_player)
+        if new_player.name in self.players:
+            return False
+        self.players[new_player.name] = new_player
+        return True
+
+    def remove_player(self, name):
+        if name in self.players:
+            del self.players[name]
+            return True
+        return False
 
     def name_exists(self, name):
         for p in self.players:
@@ -33,15 +53,15 @@ class Game:
         return False
 
     def start(self):
-        for p in self.players:
-            self.players_alive.append(p)
-        self.started = True
+        self.total_players_alive = len(self.players)
+        self.has_started = True
 
     def step(self):
-
-        if len(self.players_alive) is 1:
-            self.started = False
-            return {'winner': self.players_alive[0].name, 'district': self.players_alive[0].district}
+        if self.total_players_alive is 1:
+            self.has_started = False
+            for p in self.players.values():
+                if p.alive is True:
+                    return {'winner': p.name, 'district': p.district}
 
         if self.night_passed:
             self.day += 1
@@ -51,7 +71,7 @@ class Game:
             self.night_passed = False
 
         feast_chance = 100 * (math.pow(self.days_since_last_event, 2) / 55.0) + (9.0 / 55.0)
-        fatality_factor = random.randint(2, 4) + self.rounds_without_deaths
+        fatality_factor = random.randint(2, 4) + self.consecutive_rounds_without_deaths
 
         if self.day is 1 and not self.bloodbath_passed:
             step_type = RoundType.BLOODBATH
@@ -75,9 +95,7 @@ class Game:
             step_type = RoundType.NIGHT
             self.night_passed = True
 
-        self.players_available.clear()
-        for p in self.players_alive:
-            self.players_available.add(p)
+        self.players_available_to_act = {p for p in self.players.values() if p.alive is True}
 
         event = None
         if step_type is RoundType.FALLEN:
@@ -89,19 +107,19 @@ class Game:
                 event = events['arena'][random.randint(0, len(events['arena']) - 1)]
             else:
                 event = events[step_type.value]
-            dead_players_now = len(self.players_dead)
+            dead_players_now = len(self.players) - self.total_players_alive
             messages = self.__generate_messages(fatality_factor, event)
-            if len(self.players_dead) == dead_players_now:
-                self.rounds_without_deaths += 1
+            if len(self.players) - self.total_players_alive == dead_players_now:
+                self.consecutive_rounds_without_deaths += 1
             else:
-                self.rounds_without_deaths = 0
+                self.consecutive_rounds_without_deaths = 0
 
         summary = {
             'day': self.day,
             'roundType': step_type.value,
             'messages': messages,
             'footer': "Tributes Remaining: {0}/{1} | Host: {2}"
-                      .format(len(self.players_alive), len(self.players), self.owner_name)
+                      .format(self.total_players_alive, len(self.players), self.owner_name)
         }
 
         if step_type is RoundType.FALLEN:
@@ -125,12 +143,12 @@ class Game:
 
     def __generate_messages(self, fatality_factor, event):
         messages = []
-        while len(self.players_available) > 0:
+        while len(self.players_available_to_act) > 0:
             f = random.randint(0, 10)
-            if f < fatality_factor and len(self.players_alive) > 1:
+            if f < fatality_factor and self.total_players_alive > 1:
                 # time to die
                 action = random.choice(event['fatal'])
-                if action['killed'] is list and len(action['killed']) >= len(self.players_alive):
+                if action['killed'] is list and len(action['killed']) >= self.total_players_alive:
                     # must have one player remaining
                     continue
             else:
@@ -138,18 +156,18 @@ class Game:
                 action = random.choice(event['nonfatal'])
 
             tributes = action['tributes']
-            if tributes > len(self.players_available):
+            if tributes > len(self.players_available_to_act):
                 # not enough tributes for this action
                 continue
 
-            p = random.choice(tuple(self.players_available))
-            self.players_available.remove(p)
+            p = random.choice(tuple(self.players_available_to_act))
+            self.players_available_to_act.remove(p)
             active_players = [p]
 
             extra_tributes = tributes - 1
             while extra_tributes > 0:
-                p = random.choice(tuple(self.players_available))
-                self.players_available.remove(p)
+                p = random.choice(tuple(self.players_available_to_act))
+                self.players_available_to_act.remove(p)
                 active_players.append(p)
                 extra_tributes -= 1
 
@@ -161,9 +179,8 @@ class Game:
                         active_players[kr].kills += len(action['killed'])
                 for kd in action['killed']:
                     active_players[kd].alive = False
-                    self.players_dead.append(active_players[kd])
                     self.players_dead_today.append(active_players[kd])
-                    self.players_alive.remove(active_players[kd])
+                    self.total_players_alive -= 1
                     active_players[kd].cause_of_death = msg
 
             messages.append(msg)

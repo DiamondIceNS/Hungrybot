@@ -10,7 +10,7 @@ class TestGame(unittest.TestCase):
         self.g = Game("owner", 0, "title")
 
     def test_defaults_started(self):
-        self.assertFalse(self.g.started)
+        self.assertFalse(self.g.has_started)
 
     def test_defaults_day(self):
         self.assertEqual(self.g.day, 1)
@@ -45,11 +45,11 @@ class TestGame(unittest.TestCase):
             players.add(p)
             self.g.add_player(p)
         self.g.start()
-        self.assertTrue(players.issuperset(set(self.g.players_alive)))
+        self.assertTrue(players.issuperset(set(self.g.total_players_alive)))
 
     def test_startgame_started(self):
         self.g.add_player(Player("name", 1))
         self.g.add_player(Player("name2", 1))
         self.g.start()
-        self.assertTrue(self.g.started)
+        self.assertTrue(self.g.has_started)
 

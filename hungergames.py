@@ -12,8 +12,6 @@ class HungerGames:
     def new_game(self, channel_id, owner_id, owner_name, title):
         if channel_id in self.active_games:
             return ErrorCode.GAME_EXISTS
-        if title is None or title == "":
-            title = "The Hunger Games"
         self.active_games[channel_id] = Game(owner_name, owner_id, title)
         return True
 
@@ -22,7 +20,7 @@ class HungerGames:
             return ErrorCode.NO_GAME
         this_game = self.active_games[channel_id]
 
-        if this_game.started:
+        if this_game.has_started:
             return ErrorCode.GAME_STARTED
         if len(this_game.players) >= 24:
             return ErrorCode.GAME_FULL
@@ -47,23 +45,34 @@ class HungerGames:
 
         if len(name) > 32:
             return ErrorCode.CHAR_LIMIT
-        if this_game.name_exists(name):
-            return ErrorCode.PLAYER_EXISTS
 
         district = math.ceil((len(this_game.players) + 1) / 2)
         p = Player(name, district, is_male)
-        this_game.add_player(p)
+        if not this_game.add_player(p):
+            return ErrorCode.PLAYER_EXISTS
         gender_symbol = "♂" if is_male else "♀"
         if volunteer:
             return "**District {0} {1} | {2}** volunteers as tribute!".format(p.district, gender_symbol, p.name)
         return "**District {0} {1} | {2}** is selected to be a tribute!".format(p.district, gender_symbol, p.name)
+
+    def remove_player(self, channel_id, name):
+        if channel_id not in self.active_games:
+            return ErrorCode.NO_GAME
+        this_game = self.active_games[channel_id]
+
+        if this_game.has_started:
+            return ErrorCode.GAME_STARTED
+
+        if not this_game.remove_player(name):
+            return ErrorCode.PLAYER_DOES_NOT_EXIST
+        return "Player {0} was removed from the game.".format(name)
 
     def pad_players(self, channel_id, group):
         if channel_id not in self.active_games:
             return ErrorCode.NO_GAME
         this_game = self.active_games[channel_id]
 
-        if this_game.started:
+        if this_game.has_started:
             return ErrorCode.GAME_STARTED
         if len(this_game.players) >= 24:
             return ErrorCode.GAME_FULL
@@ -90,7 +99,7 @@ class HungerGames:
         this_game = self.active_games[channel_id]
 
         player_list = []
-        for p in this_game.players:
+        for p in this_game.players_sorted:
             gender_symbol = "♂" if p.is_male else "♀"
             if p.alive:
                 player_list.append("District {0} {1} | {2}".format(p.district, gender_symbol, p.name))
@@ -116,14 +125,14 @@ class HungerGames:
 
         if member_id != this_game.owner_id:
             return ErrorCode.NOT_OWNER
-        if this_game.started:
+        if this_game.has_started:
             return ErrorCode.GAME_STARTED
         if len(this_game.players) < 2:
             return ErrorCode.NOT_ENOUGH_PLAYERS
 
         this_game.start()
         player_list = []
-        for p in this_game.players:
+        for p in this_game.players_sorted:
             gender_symbol = "♂" if p.is_male else "♀"
             player_list.append("District {0} {1} | {2}".format(p.district, gender_symbol, p.name))
 
@@ -151,7 +160,7 @@ class HungerGames:
 
         if member_id != this_game.owner_id:
             return ErrorCode.NOT_OWNER
-        if not this_game.started:
+        if not this_game.has_started:
             return ErrorCode.GAME_NOT_STARTED
 
         summary = this_game.step()

@@ -33,7 +33,9 @@ async def new(ctx, *, title: str = None):
 
     title - (Optional) The title of the simulation. Defaults to 'The Hunger Games'
     """
-    if title is not None:
+    if title is None or title == "":
+        title = "The Hunger Games"
+    else:
         title = __strip_mentions(ctx.message, title)
         title = __sanitize_here_everyone(title)
         title = __sanitize_special_chars(title)
@@ -75,6 +77,25 @@ async def add(ctx, *, name: str):
     name = __sanitize_special_chars(name)
 
     ret = hg.add_player(ctx.channel.id, name)
+    if not await __check_errors(ctx, ret):
+        return
+    await ctx.send(ret)
+
+
+@bot.command(rest_is_raw=True)
+@commands.guild_only()
+async def remove(ctx, *, name: str):
+    """
+    Remove a user from a new game.
+    Only the game's host may use this command.
+
+    name - The name of the tribute to remove.
+    """
+    name = __strip_mentions(ctx.message, name)
+    name = __sanitize_here_everyone(name)
+    name = __sanitize_special_chars(name)
+
+    ret = hg.remove_player(ctx.channel.id, name)
     if not await __check_errors(ctx, ret):
         return
     await ctx.send(ret)
@@ -163,35 +184,38 @@ async def __check_errors(ctx, error_code):
     if type(error_code) is not ErrorCode:
         return True
     if error_code is ErrorCode.NO_GAME:
-        await ctx.reply("there is no game currently running in this channel.")
+        await ctx.reply("There is no game currently running in this channel.")
         return False
     if error_code is ErrorCode.GAME_EXISTS:
-        await ctx.reply("a game has already been started in this channel.")
+        await ctx.reply("A game has already been started in this channel.")
         return False
     if error_code is ErrorCode.GAME_STARTED:
-        await ctx.reply("this game is already running.")
+        await ctx.reply("This game is already running.")
         return False
     if error_code is ErrorCode.GAME_FULL:
-        await ctx.reply("this game is already at maximum capacity.")
+        await ctx.reply("This game is already at maximum capacity.")
         return False
     if error_code is ErrorCode.PLAYER_EXISTS:
-        await ctx.reply("that person is already in this game.")
+        await ctx.reply("That person is already in this game.")
         return False
     if error_code is ErrorCode.CHAR_LIMIT:
-        await ctx.reply("that name is too long (max 32 chars).")
+        await ctx.reply("That name is too long (max 32 chars).")
         return False
     if error_code is ErrorCode.NOT_OWNER:
-        await ctx.reply("you are not the owner of this game.")
+        await ctx.reply("You are not the owner of this game.")
         return False
     if error_code is ErrorCode.INVALID_GROUP:
-        await ctx.reply("that is not a valid group. Valid groups are:\n```\n{0}\n```"
+        await ctx.reply("That is not a valid group. Valid groups are:\n```\n{0}\n```"
                         .format("\n".join(list(default_players.keys()))))
         return False
     if error_code is ErrorCode.NOT_ENOUGH_PLAYERS:
-        await ctx.reply("there are not enough players to start a game. There must be at least 2.")
+        await ctx.reply("There are not enough players to start a game. There must be at least 2.")
         return False
     if error_code is ErrorCode.GAME_NOT_STARTED:
-        await ctx.reply("this game hasn't been started yet.")
+        await ctx.reply("This game hasn't been started yet.")
+        return False
+    if error_code is ErrorCode.PLAYER_DOES_NOT_EXIST:
+        await ctx.reply("There is no player with that name in this game.")
         return False
 
 

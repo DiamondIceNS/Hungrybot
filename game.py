@@ -56,6 +56,10 @@ class Game:
             for p in self.players.values():
                 if p.alive is True:
                     return {'winner': p.name, 'district': p.district}
+                
+        if self.total_players_alive is 0:
+            self.has_started = False
+            return {'allDead': True}
 
         if self.night_passed:
             self.day += 1

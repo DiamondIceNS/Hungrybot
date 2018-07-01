@@ -179,7 +179,7 @@ class HungerGames:
             return {
                 'title': "{0} | Winner".format(this_game.title),
                 'color': 0xd0d645,
-                'description': "All the contestants have died <:existentialdanny:391693290275078155>",
+                'description': "All the contestants have died!",
                 'footer': None
             }
 

@@ -173,6 +173,15 @@ class HungerGames:
                 'description': "The winner is {0} from District {1}!".format(summary['winner'], summary['district']),
                 'footer': None
             }
+        
+        if summary.get('allDead') is not None:
+            self.active_games.pop(channel_id)
+            return {
+                'title': "{0} | Winner".format(this_game.title),
+                'color': 0xd0d645,
+                'description': "All the contestants have died <:existentialdanny:391693290275078155>",
+                'footer': None
+            }
 
         if summary['description'] is not None and len(summary['messages']) > 0:
             formatted_msg = "{0}\n\n> {1}".format(summary['description'], "\n> ".join(summary['messages']))

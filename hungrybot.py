@@ -16,6 +16,9 @@ hg = HungerGames()
 @bot.event
 async def on_ready():
     print('Logged in!')
+    await bot.change_presence(
+        activity=discord.Game(name="{}help".format(prefix), url=None, type=2)
+    )
 
 
 @bot.command()
@@ -34,7 +37,8 @@ async def new(ctx, *, title: str = None):
     title - (Optional) The title of the simulation. Defaults to 'The Hunger Games'
     """
     if title is None or title == "":
-        title = "The Hunger Games"
+        # title = "The Hunger Games"
+        title = "Kuro's VIP Hunger Games"
     else:
         title = __strip_mentions(ctx.message, title)
         title = __sanitize_here_everyone(title)
@@ -225,14 +229,17 @@ def __strip_mentions(message: discord.Message, text):
     roles = message.role_mentions
 
     for m in members:
-        name = m.nick if m.nick is not None else m.name
-        text = re.sub(m.mention, name, text)
+        # name = m.nick if m.nick is not None else m.name
+        # text = re.sub(m.mention, name, text)
+        text = m.mention
 
     for c in channels:
-        text = re.sub(c.mention, c.name, text)
+        # text = re.sub(c.mention, c.name, text)
+        text = c.mention
 
     for r in roles:
-        text = re.sub(r.mention, r.name, text)
+        # text = re.sub(r.mention, r.name, text)
+        text = r.mention
 
     return text
 
@@ -244,7 +251,7 @@ def __sanitize_here_everyone(text):
 
 
 def __sanitize_special_chars(text):
-    text = re.sub('@', '\\@', text)
+    # text = re.sub('@', '\\@', text)
     text = re.sub('~~', '\\~\\~', text)
     text = re.sub('\*', '\\*', text)
     text = re.sub('`', '\\`', text)

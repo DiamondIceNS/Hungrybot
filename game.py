@@ -10,6 +10,7 @@ class Game:
         self.owner_id = owner_id
         self.title = title
         self.has_started = False
+        self.is_autostepping = False
 
         # Player data
         self.players = {}
@@ -30,9 +31,7 @@ class Game:
 
     @property
     def players_sorted(self):
-        l = list(self.players.values())
-        l.sort()
-        return l
+        return sorted(list(self.players.values()))
 
     def add_player(self, new_player):
         if new_player.name in self.players:

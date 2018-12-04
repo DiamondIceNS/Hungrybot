@@ -1,6 +1,9 @@
 import discord
 import re
 from discord.ext import commands
+import pytimeparse
+import datetime
+import asyncio
 
 from default_players import default_players
 from hungergames import HungerGames
@@ -141,7 +144,7 @@ async def status(ctx):
 
 @bot.command()
 @commands.guild_only()
-async def start(ctx):
+async def start(ctx, auto=None):
     """
     Starts the pending game in the channel.
     """
@@ -178,6 +181,57 @@ async def step(ctx):
     if ret['footer'] is not None:
         embed.set_footer(text=ret['footer'])
     await ctx.send(embed=embed)
+
+
+@bot.command()
+@commands.guild_only()
+async def autostep(ctx, step_time):
+    # TODO: Fix this boilerplate spaghetti and fold it into the current error system
+    if step_time is None:
+        await ctx.reply("Time interval not specified.")
+        return
+    interval = pytimeparse.parse(step_time)
+    if interval is None:
+        await ctx.reply("Invalid time interval.")
+        return
+    if ctx.channel.id not in hg.active_games:
+        __check_errors(ctx, ErrorCode.NO_GAME)
+    if hg.active_games[ctx.channel.id].owner_id is not ctx.author.id:
+        __check_errors(ctx, ErrorCode.NOT_OWNER)
+    if not hg.active_games[ctx.channel.id].has_started:
+        __check_errors(ctx, ErrorCode.GAME_NOT_STARTED)
+    if hg.active_games[ctx.channel.id].is_autostepping:
+        await ctx.reply("This game is already autostepping.")
+        return
+    interval = max(min(interval, 86400), 5)
+    hg.active_games[ctx.channel.id].is_autostepping = True
+    await ctx.send("Starting auto-step at {0} per step...".format(datetime.timedelta(seconds=interval)))
+    while ctx.channel.id in hg.active_games and hg.active_games[ctx.channel.id].has_started:
+        ret = hg.step(ctx.channel.id, ctx.author.id)
+        if not await __check_errors(ctx, ret):
+            return
+        embed = discord.Embed(title=ret['title'], color=ret['color'], description=ret['description'])
+        if ret['footer'] is not None:
+            embed.set_footer(text=ret['footer'])
+        await ctx.send(embed=embed)
+        await asyncio.sleep(interval)
+
+
+@bot.command
+@commands.guild_only()
+async def stopautostep(ctx):
+    # TODO: Fix this boilerplate spaghetti and fold it into the current error system
+    if ctx.channel.id not in hg.active_games:
+        __check_errors(ctx, ErrorCode.NO_GAME)
+    if hg.active_games[ctx.channel.id].owner_id is not ctx.author.id:
+        __check_errors(ctx, ErrorCode.NOT_OWNER)
+    if not hg.active_games[ctx.channel.id].has_started:
+        __check_errors(ctx, ErrorCode.GAME_NOT_STARTED)
+    if hg.active_games[ctx.channel.id].is_autostepping:
+        await ctx.reply("This game is not autostepping.")
+        return
+    hg.active_games[ctx.channel.id].is_autostepping = False
+    await ctx.send("Autostepping cancelled.")
 
 
 async def __check_errors(ctx, error_code):
